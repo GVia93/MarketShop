@@ -1,0 +1,63 @@
+from django import forms
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
+from django.contrib.auth.models import User
+from .models import Order
+
+
+class RegisterForm(UserCreationForm):
+    """Форма регистрации"""
+    email = forms.EmailField(required=True, label='Email')
+    first_name = forms.CharField(max_length=100, required=True, label='Имя')
+    last_name = forms.CharField(max_length=100, required=True, label='Фамилия')
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'first_name', 'last_name', 'password1', 'password2']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field_name, field in self.fields.items():
+            field.widget.attrs['class'] = 'form-control'
+            field.widget.attrs['placeholder'] = field.label
+
+
+class LoginForm(AuthenticationForm):
+    """Форма входа"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['username'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'Имя пользователя'
+        })
+        self.fields['password'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'Пароль'
+        })
+
+
+class OrderForm(forms.ModelForm):
+    """Форма оформления заказа"""
+    class Meta:
+        model = Order
+        fields = ['first_name', 'last_name', 'email', 'phone', 'address', 'note']
+        widgets = {
+            'first_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Иван'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Иванов'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'example@mail.ru'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+7 (999) 123-45-67'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Город, улица, дом, квартира'}),
+            'note': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Дополнительная информация'}),
+        }
+
+
+class SearchForm(forms.Form):
+    """Форма поиска"""
+    q = forms.CharField(
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Поиск товаров...',
+            'aria-label': 'Поиск'
+        })
+    )

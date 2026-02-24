@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+
+{% block title %}Заказ #{{ order.id }} - ShopMarket{% endblock %}
+
+{% block content %}
+<div class=\"container py-4\">
+    <nav aria-label=\"breadcrumb\" class=\"mb-4\">
+        <ol class=\"breadcrumb\">
+            <li class=\"breadcrumb-item\"><a href=\"{% url 'home' %}\">Главная</a></li>
+            <li class=\"breadcrumb-item\"><a href=\"{% url 'order_list' %}\">Мои заказы</a></li>
+            <li class=\"breadcrumb-item active\">Заказ #{{ order.id }}</li>
+        </ol>
+    </nav>
+
+    <div class=\"d-flex justify-content-between align-items-center mb-4\">
+        <h1 class=\"fw-bold mb-0\" data-testid=\"order-detail-title\">
+            <i class=\"bi bi-box me-2\"></i>Заказ #{{ order.id }}
+        </h1>
+        <span class=\"order-status status-{{ order.status }} fs-5\" data-testid=\"order-status\">
+            {{ order.get_status_display }}
+        </span>
+    </div>
+
+    <div class=\"row\" data-testid=\"order-detail\">
+        <div class=\"col-lg-8 mb-4\">
+            <!-- Order Items -->
+            <div class=\"card mb-4\">
+                <div class=\"card-header bg-light\">
+                    <h5 class=\"mb-0\"><i class=\"bi bi-cart me-2\"></i>Товары в заказе</h5>
+                </div>
+                <div class=\"card-body\" data-testid=\"order-items\">
+                    {% for item in order.items.all %}
+                    <div class=\"d-flex align-items-center py-3 {% if not forloop.last %}border-bottom{% endif %}\">
+                        <div class=\"me-3\" style=\"width: 80px;\">
+                            {% if item.product and item.product.image %}
+                            <img src=\"{{ item.product.image.url }}\" alt=\"{{ item.product_name }}\" class=\"img-fluid rounded\">
+                            {% else %}
+                            <div class=\"bg-light rounded d-flex align-items-center justify-content-center\" style=\"height: 80px;\">
+                                <i class=\"bi bi-image text-muted\" style=\"font-size: 1.5rem;\"></i>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class=\"flex-grow-1\">
+                            <h6 class=\"mb-1\">{{ item.product_name }}</h6>
+                            <small class=\"text-muted\">{{ item.quantity }} x {{ item.price }} ₽</small>
+                        </div>
+                        <div class=\"text-end\">
+                            <span class=\"fw-bold\">{{ item.get_total_price }} ₽</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class=\"card-footer\">
+                    <div class=\"d-flex justify-content-between\">
+                        <span class=\"h5 mb-0\">Итого:</span>
+                        <span class=\"h5 mb-0 text-primary\" data-testid=\"order-total\">{{ order.total_price }} ₽</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delivery Info -->
+            <div class=\"card\">
+                <div class=\"card-header bg-light\">
+                    <h5 class=\"mb-0\"><i class=\"bi bi-truck me-2\"></i>Информация о доставке</h5>
+                </div>
+                <div class=\"card-body\" data-testid=\"delivery-info\">
+                    <div class=\"row\">
+                        <div class=\"col-md-6 mb-3\">
+                            <label class=\"text-muted small\">Получатель</label>
+                            <p class=\"mb-0 fw-bold\">{{ order.first_name }} {{ order.last_name }}</p>
+                        </div>
+                        <div class=\"col-md-6 mb-3\">
+                            <label class=\"text-muted small\">Телефон</label>
+                            <p class=\"mb-0\">{{ order.phone }}</p>
+                        </div>
+                        <div class=\"col-md-6 mb-3\">
+                            <label class=\"text-muted small\">Email</label>
+                            <p class=\"mb-0\">{{ order.email }}</p>
+                        </div>
+                        <div class=\"col-12\">
+                            <label class=\"text-muted small\">Адрес доставки</label>
+                            <p class=\"mb-0\">{{ order.address }}</p>
+                        </div>
+                        {% if order.note %}
+                        <div class=\"col-12 mt-3\">
+                            <label class=\"text-muted small\">Примечание</label>
+                            <p class=\"mb-0\">{{ order.note }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class=\"col-lg-4\">
+            <!-- Order Summary -->
+            <div class=\"card sticky-top\" style=\"top: 20px;\">
+                <div class=\"card-header bg-primary text-white\">
+                    <h5 class=\"mb-0\"><i class=\"bi bi-info-circle me-2\"></i>Информация о заказе</h5>
+                </div>
+                <div class=\"card-body\">
+                    <div class=\"mb-3\">
+                        <label class=\"text-muted small\">Номер заказа</label>
+                        <p class=\"mb-0 fw-bold\">#{{ order.id }}</p>
+                    </div>
+                    <div class=\"mb-3\">
+                        <label class=\"text-muted small\">Дата оформления</label>
+                        <p class=\"mb-0\">{{ order.created_at|date:\"d.m.Y в H:i\" }}</p>
+                    </div>
+                    <div class=\"mb-3\">
+                        <label class=\"text-muted small\">Статус</label>
+                        <p class=\"mb-0\">
+                            <span class=\"order-status status-{{ order.status }}\">
+                                {{ order.get_status_display }}
+                            </span>
+                        </p>
+                    </div>
+                    <hr>
+                    <div class=\"d-flex justify-content-between\">
+                        <span>Товаров:</span>
+                        <span>{{ order.items.count }}</span>
+                    </div>
+                    <div class=\"d-flex justify-content-between mt-2\">
+                        <span class=\"h5 mb-0\">Сумма:</span>
+                        <span class=\"h5 mb-0 text-primary\">{{ order.total_price }} ₽</span>
+                    </div>
+                </div>
+                <div class=\"card-footer\">
+                    <a href=\"{% url 'order_list' %}\" class=\"btn btn-outline-primary w-100\">
+                        <i class=\"bi bi-arrow-left me-2\"></i>Все заказы
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

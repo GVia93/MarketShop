@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% block title %}Избранное - ShopMarket{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Главная</a></li>
+            <li class="breadcrumb-item active">Избранное</li>
+        </ol>
+    </nav>
+
+    <h1 class="fw-bold mb-4" data-testid="wishlist-title">
+        <i class="bi bi-heart me-2"></i>Избранное
+    </h1>
+
+    {% if wishlist_items %}
+    <div class="row g-4" data-testid="wishlist-grid">
+        {% for item in wishlist_items %}
+        <div class="col-6 col-md-4 col-lg-3">
+            <div class="card product-card h-100" data-testid="wishlist-item-{{ item.product.id }}">
+                <div class="position-relative">
+                    {% if item.product.image %}
+                    <img src="{{ item.product.image.url }}" class="card-img-top" alt="{{ item.product.name }}">
+                    {% else %}
+                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                        <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+                    </div>
+                    {% endif %}
+                    <form action="{% url 'toggle_wishlist' item.product.id %}" method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="wishlist-btn active" title="Удалить из избранного" data-testid="remove-wishlist-{{ item.product.id }}">
+                            <i class="bi bi-heart-fill"></i>
+                        </button>
+                    </form>
+                </div>
+                <div class="card-body d-flex flex-column">
+                    <small class="text-muted mb-1">{{ item.product.category.name }}</small>
+                    <h6 class="card-title mb-2">
+                        <a href="{% url 'product_detail' item.product.slug %}" class="text-decoration-none text-dark">
+                            {{ item.product.name }}
+                        </a>
+                    </h6>
+                    <div class="mt-auto">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="product-price">{{ item.product.price }} ₽</span>
+                            {% if item.product.stock > 0 %}
+                            <span class="badge badge-stock">В наличии</span>
+                            {% else %}
+                            <span class="badge badge-out-of-stock">Нет</span>
+                            {% endif %}
+                        </div>
+                        {% if item.product.stock > 0 %}
+                        <form action="{% url 'add_to_cart' item.product.id %}" method="post">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-primary btn-sm w-100 add-to-cart-btn"
+                                    data-url="{% url 'add_to_cart' item.product.id %}"
+                                    data-testid="add-to-cart-{{ item.product.id }}">
+                                <i class="bi bi-cart-plus me-1"></i> В корзину
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5" data-testid="empty-wishlist">
+        <i class="bi bi-heart display-1 text-muted"></i>
+        <h3 class="text-muted mt-3">Список избранного пуст</h3>
+        <p class="text-muted">Добавляйте понравившиеся товары в избранное</p>
+        <a href="{% url 'product_list' %}" class="btn btn-primary btn-lg mt-3">
+            <i class="bi bi-shop me-2"></i>Перейти в каталог
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

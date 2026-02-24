@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+
+{% block title %}ShopMarket - Главная{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section" data-testid="hero-section">
+    <div class="container text-center">
+        <h1 class="display-4 fw-bold mb-3">Добро пожаловать в ShopMarket</h1>
+        <p class="lead mb-4">Широкий выбор товаров по отличным ценам с быстрой доставкой</p>
+        <div class="search-box">
+            <form action="{% url 'search' %}" method="get" class="d-flex" data-testid="hero-search-form">
+                <input type="search" name="q" class="form-control form-control-lg" placeholder="Что вы ищете?" data-testid="hero-search-input">
+                <button type="submit" class="btn btn-warning btn-lg" data-testid="hero-search-button">
+                    <i class="bi bi-search"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+</section>
+
+<div class="container py-4">
+    <!-- Categories Section -->
+    {% if categories %}
+    <section class="mb-5" data-testid="categories-section">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="fw-bold mb-0">Категории</h2>
+            <a href="{% url 'product_list' %}" class="btn btn-outline-primary" data-testid="view-all-categories">
+                Все товары <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+        <div class="row g-4">
+            {% for category in categories %}
+            <div class="col-6 col-md-4 col-lg-2">
+                <a href="{% url 'category_detail' category.slug %}" class="text-decoration-none" data-testid="category-link-{{ category.slug }}">
+                    <div class="card category-card h-100">
+                        {% if category.image %}
+                        <img src="{{ category.image.url }}" alt="{{ category.name }}" class="img-fluid rounded mb-2" style="height: 80px; object-fit: cover;">
+                        {% else %}
+                        <i class="bi bi-grid-3x3-gap-fill"></i>
+                        {% endif %}
+                        <h6 class="text-dark mb-0">{{ category.name }}</h6>
+                        <small class="text-muted">{{ category.products.count }} товаров</small>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Featured Products -->
+    <section data-testid="featured-products-section">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="fw-bold mb-0">Популярные товары</h2>
+            <a href="{% url 'product_list' %}" class="btn btn-outline-primary" data-testid="view-all-products">
+                Смотреть все <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+
+        {% if featured_products %}
+        <div class="row g-4" data-testid="products-grid">
+            {% for product in featured_products %}
+            <div class="col-6 col-md-4 col-lg-3">
+                <div class="card product-card h-100" data-testid="product-card-{{ product.slug }}">
+                    <div class="position-relative">
+                        {% if product.image %}
+                        <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}">
+                        {% else %}
+                        <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                            <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+                        </div>
+                        {% endif %}
+                        {% if user.is_authenticated %}
+                        <button class="wishlist-btn wishlist-toggle-btn {% if product.id in wishlist_ids %}active{% endif %}"
+                                data-url="{% url 'toggle_wishlist' product.id %}"
+                                data-testid="wishlist-btn-{{ product.id }}">
+                            <i class="bi bi-heart{% if product.id in wishlist_ids %}-fill{% endif %}"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                    <div class="card-body d-flex flex-column">
+                        <small class="text-muted mb-1">{{ product.category.name }}</small>
+                        <h6 class="card-title mb-2">
+                            <a href="{% url 'product_detail' product.slug %}" class="text-decoration-none text-dark" data-testid="product-link-{{ product.slug }}">
+                                {{ product.name }}
+                            </a>
+                        </h6>
+                        <div class="mt-auto">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="product-price" data-testid="product-price-{{ product.id }}">{{ product.price }} ₽</span>
+                                {% if product.stock > 0 %}
+                                <span class="badge badge-stock" data-testid="stock-badge-{{ product.id }}">В наличии</span>
+                                {% else %}
+                                <span class="badge badge-out-of-stock">Нет в наличии</span>
+                                {% endif %}
+                            </div>
+                            {% if user.is_authenticated and product.stock > 0 %}
+                            <form action="{% url 'add_to_cart' product.id %}" method="post" class="add-to-cart-form">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-primary btn-sm w-100 add-to-cart-btn"
+                                        data-url="{% url 'add_to_cart' product.id %}"
+                                        data-testid="add-to-cart-{{ product.id }}">
+                                    <i class="bi bi-cart-plus me-1"></i> В корзину
+                                </button>
+                            </form>
+                            {% elif not user.is_authenticated %}
+                            <a href="{% url 'login' %}?next={% url 'product_detail' product.slug %}" class="btn btn-outline-primary btn-sm w-100" data-testid="login-to-buy-{{ product.id }}">
+                                <i class="bi bi-box-arrow-in-right me-1"></i> Войти для покупки
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5" data-testid="no-products-message">
+            <i class="bi bi-inbox display-1 text-muted"></i>
+            <h4 class="text-muted mt-3">Товары пока не добавлены</h4>
+            <p class="text-muted">Скоро здесь появятся товары</p>
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- Features Section -->
+    <section class="py-5 mt-5" data-testid="features-section">
+        <div class="row g-4 text-center">
+            <div class="col-md-4">
+                <div class="p-4">
+                    <i class="bi bi-truck display-4 text-primary mb-3"></i>
+                    <h5>Быстрая доставка</h5>
+                    <p class="text-muted mb-0">Доставим ваш заказ в кратчайшие сроки</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-4">
+                    <i class="bi bi-shield-check display-4 text-primary mb-3"></i>
+                    <h5>Гарантия качества</h5>
+                    <p class="text-muted mb-0">Только оригинальные товары</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-4">
+                    <i class="bi bi-headset display-4 text-primary mb-3"></i>
+                    <h5>Поддержка 24/7</h5>
+                    <p class="text-muted mb-0">Всегда на связи для помощи</p>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

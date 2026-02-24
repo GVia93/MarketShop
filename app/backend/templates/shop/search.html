@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block title %}Поиск: {{ query }} - ShopMarket{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Главная</a></li>
+            <li class="breadcrumb-item active">Поиск</li>
+        </ol>
+    </nav>
+
+    <h1 class="mb-4">Результаты поиска{% if query %}: "{{ query }}"{% endif %}</h1>
+
+    {% if query %}
+        {% if products %}
+        <p class="text-muted mb-4">Найдено товаров: {{ products|length }}</p>
+        <div class="row g-4">
+            {% for product in products %}
+            <div class="col-6 col-md-4 col-lg-3">
+                <div class="card product-card h-100">
+                    <div class="position-relative">
+                        {% if product.image %}
+                        <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}">
+                        {% else %}
+                        <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                            <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+                        </div>
+                        {% endif %}
+                        {% if user.is_authenticated %}
+                        <button class="wishlist-btn wishlist-toggle-btn" data-url="{% url 'toggle_wishlist' product.id %}">
+                            <i class="bi bi-heart"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                    <div class="card-body d-flex flex-column">
+                        <small class="text-muted mb-1">{{ product.category.name }}</small>
+                        <h6 class="card-title mb-2">
+                            <a href="{% url 'product_detail' product.slug %}" class="text-decoration-none text-dark">
+                                {{ product.name }}
+                            </a>
+                        </h6>
+                        <p class="text-muted small">{{ product.description|truncatewords:10 }}</p>
+                        <div class="mt-auto">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="product-price">{{ product.price }} ₽</span>
+                                {% if product.stock > 0 %}
+                                <span class="badge badge-stock">В наличии</span>
+                                {% else %}
+                                <span class="badge badge-out-of-stock">Нет</span>
+                                {% endif %}
+                            </div>
+                            {% if user.is_authenticated and product.stock > 0 %}
+                            <form action="{% url 'add_to_cart' product.id %}" method="post">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-primary btn-sm w-100 add-to-cart-btn" data-url="{% url 'add_to_cart' product.id %}">
+                                    <i class="bi bi-cart-plus me-1"></i> В корзину
+                                </button>
+                            </form>
+                            {% elif not user.is_authenticated %}
+                            <a href="{% url 'login' %}?next={% url 'product_detail' product.slug %}" class="btn btn-outline-primary btn-sm w-100">
+                                <i class="bi bi-box-arrow-in-right me-1"></i> Войти
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-search display-1 text-muted"></i>
+            <h4 class="mt-3">Ничего не найдено</h4>
+            <p class="text-muted">Попробуйте изменить поисковый запрос</p>
+            <a href="{% url 'product_list' %}" class="btn btn-outline-primary">Смотреть все товары</a>
+        </div>
+        {% endif %}
+    {% else %}
+    <div class="text-center py-5">
+        <i class="bi bi-question-circle display-1 text-muted"></i>
+        <h4 class="mt-3">Введите поисковый запрос</h4>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

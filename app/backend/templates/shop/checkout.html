@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+
+{% block title %}Оформление заказа - ShopMarket{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Главная</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'cart' %}">Корзина</a></li>
+            <li class="breadcrumb-item active">Оформление заказа</li>
+        </ol>
+    </nav>
+
+    <h1 class="fw-bold mb-4" data-testid="checkout-title">
+        <i class="bi bi-credit-card me-2"></i>Оформление заказа
+    </h1>
+
+    <form method="post" data-testid="checkout-form">
+        {% csrf_token %}
+        <div class="row">
+            <div class="col-lg-8 mb-4">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-person me-2"></i>Данные получателя</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Имя *</label>
+                                {{ form.first_name }}
+                                {% if form.first_name.errors %}
+                                <div class="text-danger small">{{ form.first_name.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Фамилия *</label>
+                                {{ form.last_name }}
+                                {% if form.last_name.errors %}
+                                <div class="text-danger small">{{ form.last_name.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Email *</label>
+                                {{ form.email }}
+                                {% if form.email.errors %}
+                                <div class="text-danger small">{{ form.email.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Телефон *</label>
+                                {{ form.phone }}
+                                {% if form.phone.errors %}
+                                <div class="text-danger small">{{ form.phone.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Адрес доставки *</label>
+                                {{ form.address }}
+                                {% if form.address.errors %}
+                                <div class="text-danger small">{{ form.address.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Примечание к заказу</label>
+                                {{ form.note }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mt-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0"><i class="bi bi-box me-2"></i>Товары в заказе</h5>
+                    </div>
+                    <div class="card-body" data-testid="checkout-items">
+                        {% for item in cart.items.all %}
+                        <div class="d-flex align-items-center py-2 {% if not forloop.last %}border-bottom{% endif %}">
+                            <div class="me-3" style="width: 60px;">
+                                {% if item.product.image %}
+                                <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="img-fluid rounded">
+                                {% else %}
+                                <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 60px;">
+                                    <i class="bi bi-image text-muted"></i>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-0">{{ item.product.name }}</h6>
+                                <small class="text-muted">{{ item.quantity }} x {{ item.product.price }} ₽</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="fw-bold">{{ item.get_total_price }} ₽</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card sticky-top" style="top: 20px;" data-testid="order-summary">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-receipt me-2"></i>Сумма заказа</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Товаров:</span>
+                            <span>{{ cart.get_total_items }} шт.</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Стоимость товаров:</span>
+                            <span>{{ cart.get_total_price }} ₽</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Доставка:</span>
+                            <span class="text-success">Бесплатно</span>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between mb-4">
+                            <span class="h5 mb-0">Итого:</span>
+                            <span class="h5 mb-0 text-primary" data-testid="order-total">{{ cart.get_total_price }} ₽</span>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100 btn-lg" data-testid="place-order-btn">
+                            <i class="bi bi-check-circle me-2"></i>Подтвердить заказ
+                        </button>
+                        <a href="{% url 'cart' %}" class="btn btn-outline-secondary w-100 mt-2">
+                            <i class="bi bi-arrow-left me-2"></i>Вернуться в корзину
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
