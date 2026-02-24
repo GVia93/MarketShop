@@ -1,7 +1,14 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.models import User
+from django.core.validators import RegexValidator
 from .models import Order
+
+
+phone_validator = RegexValidator(
+    regex=r'^\+?[1-9]\d{6,14}$',
+    message='Введите корректный номер телефона (например: +79991234567)'
+)
 
 
 class RegisterForm(UserCreationForm):
@@ -37,6 +44,12 @@ class LoginForm(AuthenticationForm):
 
 class OrderForm(forms.ModelForm):
     """Форма оформления заказа"""
+    phone = forms.CharField(
+        max_length=20,
+        validators=[phone_validator],
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+7 (999) 123-45-67'})
+    )
+
     class Meta:
         model = Order
         fields = ['first_name', 'last_name', 'email', 'phone', 'address', 'note']
@@ -44,7 +57,6 @@ class OrderForm(forms.ModelForm):
             'first_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Иван'}),
             'last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Иванов'}),
             'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'example@mail.ru'}),
-            'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+7 (999) 123-45-67'}),
             'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Город, улица, дом, квартира'}),
             'note': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Дополнительная информация'}),
         }

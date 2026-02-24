@@ -4,7 +4,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q
 from django.http import JsonResponse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_http_methods
+from django.db import transaction
 
 from .models import Category, Product, Cart, CartItem, Order, OrderItem, Wishlist
 from .forms import RegisterForm, LoginForm, OrderForm, SearchForm
@@ -13,7 +14,7 @@ from .forms import RegisterForm, LoginForm, OrderForm, SearchForm
 def home(request):
     """Главная страница"""
     categories = Category.objects.all()[:6]
-    featured_products = Product.objects.filter(available=True)[:8]
+    featured_products = Product.objects.filter(available=True).select_related('category')[:8]
     return render(request, 'shop/home.html', {
         'categories': categories,
         'featured_products': featured_products,
@@ -22,7 +23,7 @@ def home(request):
 
 def product_list(request):
     """Список всех товаров"""
-    products = Product.objects.filter(available=True)
+    products = Product.objects.filter(available=True).select_related('category')
     search_form = SearchForm(request.GET)
 
     if search_form.is_valid():
@@ -59,7 +60,7 @@ def product_detail(request, slug):
 def category_detail(request, slug):
     """Страница категории"""
     category = get_object_or_404(Category, slug=slug)
-    products = Product.objects.filter(category=category, available=True)
+    products = Product.objects.filter(category=category, available=True).select_related('category')
     return render(request, 'shop/category_detail.html', {
         'category': category,
         'products': products,
@@ -75,7 +76,7 @@ def search(request):
         products = Product.objects.filter(
             Q(name__icontains=query) | Q(description__icontains=query),
             available=True
-        )
+        ).select_related('category')
 
     return render(request, 'shop/search.html', {
         'query': query,
@@ -123,6 +124,7 @@ def login_view(request):
     return render(request, 'shop/login.html', {'form': form})
 
 
+@require_http_methods(["GET", "POST"])
 def logout_view(request):
     """Выход"""
     logout(request)
@@ -135,8 +137,8 @@ def logout_view(request):
 def cart_view(request):
     """Страница корзины"""
     cart, _ = Cart.objects.get_or_create(user=request.user)
-    return render(request, 'shop/cart.html', {'cart': cart})
-
+    cart_items = cart.items.select_related('product', 'product__category')
+    return render(request, 'shop/cart.html', {'cart': cart, 'cart_items': cart_items})
 
 @login_required
 @require_POST
@@ -167,21 +169,23 @@ def add_to_cart(request, product_id):
 def update_cart_item(request, item_id):
     """Обновление количества товара в корзине"""
     cart_item = get_object_or_404(CartItem, id=item_id, cart__user=request.user)
+    cart = cart_item.cart
     quantity = int(request.POST.get('quantity', 1))
 
     if quantity > 0:
         cart_item.quantity = quantity
         cart_item.save()
+        item_total = float(cart_item.get_total_price())
     else:
         cart_item.delete()
+        item_total = 0
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        cart = cart_item.cart
         return JsonResponse({
             'success': True,
             'cart_count': cart.get_total_items(),
             'cart_total': float(cart.get_total_price()),
-            'item_total': float(cart_item.get_total_price()) if quantity > 0 else 0
+            'item_total': item_total
         })
 
     return redirect('cart')
@@ -221,12 +225,19 @@ def checkout(request):
     if request.method == 'POST':
         form = OrderForm(request.POST)
         if form.is_valid():
-            order = form.save(commit=False)
-            order.user = request.user
-            order.total_price = cart.get_total_price()
-            order.save()
+            with transaction.atomic():
+                order = form.save(commit=False)
+                order.user = request.user
+                order.total_price = cart.get_total_price()
+                order.save()
 
-            for item in cart.items.all():
+            for item in cart.items.select_related('product'):
+                # Проверка доступности товара
+                product = Product.objects.select_for_update().get(id=item.product.id)
+                if product.stock < item.quantity:
+                    messages.error(request, f'Недостаточно товара \"{product.name}\" на складе')
+                    return redirect('cart')
+
                 OrderItem.objects.create(
                     order=order,
                     product=item.product,
@@ -235,8 +246,8 @@ def checkout(request):
                     quantity=item.quantity
                 )
                 # Update stock
-                item.product.stock -= item.quantity
-                item.product.save()
+                product.stock -= item.quantity
+                product.save()
 
             cart.items.all().delete()
 
