@@ -1,0 +1,110 @@
+name: Django CI
+
+on:
+  push:
+    branches: [ develop, master, main ]
+  pull_request:
+    branches: [ develop, master, main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install Django>=5.0 django-crispy-forms crispy-bootstrap5 django-environ pillow
+        pip install coverage
+
+    - name: Create .env file
+      working-directory: ./app/backend
+      run: |
+        echo "SECRET_KEY=test-secret-key-for-ci-only" > .env
+        echo "DEBUG=True" >> .env
+
+    - name: Run migrations
+      working-directory: ./app/backend
+      run: python manage.py migrate --no-input
+
+    - name: Run tests with coverage
+      working-directory: ./app/backend
+      run: |
+        coverage run --source='shop' manage.py test shop --verbosity=2
+        coverage report -m
+        coverage xml
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./app/backend/coverage.xml
+        fail_ci_if_error: false
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install linters
+      run: |
+        python -m pip install --upgrade pip
+        pip install ruff
+
+    - name: Run Ruff linter
+      working-directory: ./app/backend
+      run: ruff check . --ignore E501, B017
+
+  security:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install security scanner
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit safety
+
+    - name: Run Bandit security scan
+      working-directory: ./app/backend
+      run: bandit -r . -x ./tests.py -ll
+      continue-on-error: true
+
+    - name: Check dependencies for vulnerabilities
+      run: |
+        pip install Django django-crispy-forms crispy-bootstrap5 django-environ pillow
+        safety check
+      continue-on-error: true

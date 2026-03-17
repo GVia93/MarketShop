@@ -1,14 +1,14 @@
-from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
-from django.contrib import messages
+from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
-from django.views.decorators.http import require_POST, require_http_methods
-from django.db import transaction
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_http_methods, require_POST
 
-from .models import Category, Product, Cart, CartItem, Order, OrderItem, Wishlist
-from .forms import RegisterForm, LoginForm, OrderForm, SearchForm
+from .forms import LoginForm, OrderForm, RegisterForm, SearchForm
+from .models import Cart, CartItem, Category, Order, OrderItem, Product, Wishlist
 
 
 def home(request):
@@ -222,45 +222,56 @@ def checkout(request):
         messages.warning(request, 'Ваша корзина пуста')
         return redirect('cart')
 
+    # Создаем форму с начальными данными для GET запроса
+    initial = {
+        'first_name': request.user.first_name,
+        'last_name': request.user.last_name,
+        'email': request.user.email,
+    }
+    form = OrderForm(initial=initial)
+
     if request.method == 'POST':
         form = OrderForm(request.POST)
         if form.is_valid():
-            with transaction.atomic():
-                order = form.save(commit=False)
-                order.user = request.user
-                order.total_price = cart.get_total_price()
-                order.save()
+            try:
+                with transaction.atomic():
+                    # Сначала проверяем наличие всех товаров
+                    for item in cart.items.select_related('product'):
+                        product = Product.objects.select_for_update().get(id=item.product.id)
+                        if product.stock < item.quantity:
+                            messages.error(request, f'Недостаточно товара "{product.name}" на складе (доступно: {product.stock} шт.)')
+                            return redirect('cart')
 
-            for item in cart.items.select_related('product'):
-                # Проверка доступности товара
-                product = Product.objects.select_for_update().get(id=item.product.id)
-                if product.stock < item.quantity:
-                    messages.error(request, f'Недостаточно товара \"{product.name}\" на складе')
-                    return redirect('cart')
+                    # Создаём заказ только после успешной проверки
+                    order = form.save(commit=False)
+                    order.user = request.user
+                    order.total_price = cart.get_total_price()
+                    order.save()
 
-                OrderItem.objects.create(
-                    order=order,
-                    product=item.product,
-                    product_name=item.product.name,
-                    price=item.product.price,
-                    quantity=item.quantity
-                )
-                # Update stock
-                product.stock -= item.quantity
-                product.save()
+                    # Создаём элементы заказа и обновляем stock
+                    for item in cart.items.select_related('product'):
+                        product = Product.objects.select_for_update().get(id=item.product.id)
 
-            cart.items.all().delete()
+                        OrderItem.objects.create(
+                            order=order,
+                            product=item.product,
+                            product_name=item.product.name,
+                            price=item.product.price,
+                            quantity=item.quantity
+                        )
+                        product.stock -= item.quantity
+                        product.save()
 
-            messages.success(request, f'Заказ #{order.id} успешно оформлен!')
-            return redirect('order_detail', order_id=order.id)
-    else:
-        initial = {
-            'first_name': request.user.first_name,
-            'last_name': request.user.last_name,
-            'email': request.user.email,
-        }
-        form = OrderForm(initial=initial)
+                    cart.items.all().delete()
 
+                    messages.success(request, f'Заказ #{order.id} успешно оформлен!')
+                    return redirect('order_detail', order_id=order.id)
+            except Exception:
+                messages.error(request, 'Произошла ошибка при оформлении заказа. Попробуйте снова.')
+                return redirect('cart')
+        # Если форма не валидна, продолжаем выполнение и показываем страницу с ошибками
+
+    # Всегда возвращаем render в конце функции
     return render(request, 'shop/checkout.html', {
         'cart': cart,
         'form': form,
