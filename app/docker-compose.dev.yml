@@ -1,0 +1,19 @@
+# Docker Compose для локальной разработки
+services:
+  web:
+    build: .
+    container_name: shopmarket-dev
+    command: python manage.py runserver 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    environment:
+      - SECRET_KEY=dev-secret-key-not-for-production
+      - DEBUG=True
+      - ALLOWED_HOSTS=*
+    volumes:
+      - ./app/backend:/app
+      - dev_media:/app/media
+    restart: unless-stopped
+
+volumes:
+  dev_media:

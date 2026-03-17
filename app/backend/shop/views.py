@@ -5,10 +5,16 @@ from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_http_methods, require_POST
+from django.views.decorators.http import require_http_methods, require_POST, require_GET
 
 from .forms import LoginForm, OrderForm, RegisterForm, SearchForm
 from .models import Cart, CartItem, Category, Order, OrderItem, Product, Wishlist
+
+
+@require_GET
+def health_check(request):
+    """Health check endpoint для Docker/Kubernetes"""
+    return JsonResponse({'status': 'ok'})
 
 
 def home(request):

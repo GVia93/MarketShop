@@ -83,17 +83,27 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# Database - теперь используем PostgreSQL из .env
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': env('DB_NAME', default='shopmarket'),
-        'USER': env('DB_USER', default='shopuser'),
-        'PASSWORD': env('DB_PASSWORD', default=''),
-        'HOST': env('DB_HOST', default='localhost'),
-        'PORT': env('DB_PORT', default='5432'),
+# Database configuration
+# PostgreSQL for production, SQLite for development
+DATABASE_URL = env('DATABASE_URL', default=None)
+
+if DATABASE_URL:
+    # PostgreSQL (production)
+    DATABASES = {
+        'default': env.db('DATABASE_URL')
     }
-}
+else:
+    # SQLite (development)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': env('DB_NAME', default='shopmarket'),
+            'USER': env('DB_USER', default='shopuser'),
+            'PASSWORD': env('DB_PASSWORD', default=''),
+            'HOST': env('DB_HOST', default='localhost'),
+            'PORT': env('DB_PORT', default='5432'),
+        }
+    }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

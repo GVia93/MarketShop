@@ -1,9 +1,9 @@
-
 # 🛒 ShopMarket
 
 [![Django CI](https://github.com/GVia93/MarketShop/actions/workflows/django-ci.yml/badge.svg)](https://github.com/GVia93/MarketShop/actions/workflows/django-ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Django 5.x](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg)](https://www.postgresql.org/)
 [![Coverage](https://img.shields.io/badge/coverage-94%25-brightgreen.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -20,6 +20,7 @@
 - 👤 **Личный кабинет** — профиль, история заказов
 - 🔐 **Аутентификация** — регистрация, вход, выход
 - 🛠️ **Админ-панель** — полное управление магазином
+- 🐳 **Docker** — готов к production с PostgreSQL и Nginx
 
 ## 🚀 Быстрый старт
 
@@ -27,8 +28,9 @@
 
 - Python 3.11+
 - pip
+- Docker & Docker Compose (опционально)
 
-### Установка
+### Локальная установка
 
 ```bash
 # Клонировать репозиторий
@@ -42,7 +44,7 @@ source venv/bin/activate  # Linux/macOS
 venv\Scripts\activate  # Windows
 
 # Установить зависимости
-pip install -r requirements.txt
+pip install -r app/backend/requirements.txt
 
 # Перейти в директорию backend
 cd app/backend
@@ -85,33 +87,111 @@ print('Тестовые данные загружены!')
 EOF
 ```
 
+## 🐳 Docker
+
+### Архитектура
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Nginx     │────▶│   Django    │────▶│  PostgreSQL │
+│   :80       │     │   :8000     │     │   :5432     │
+└─────────────┘     └─────────────┘     └─────────────┘
+       │                   │
+       ▼                   ▼
+  static_volume       media_volume
+```
+
+### Production (PostgreSQL + Nginx)
+
+```bash
+# Скопировать и настроить переменные окружения
+cp .env.example .env
+nano .env  # Изменить SECRET_KEY и POSTGRES_PASSWORD!
+
+# Запустить все сервисы
+docker-compose up -d
+
+# Создать суперпользователя
+docker-compose exec web python manage.py createsuperuser
+```
+
+Приложение доступно на http://localhost (порт 80).
+
+### Development (SQLite + hot-reload)
+
+```bash
+# Запуск в режиме разработки
+docker-compose -f docker-compose.dev.yml up
+
+# Применить миграции
+docker-compose -f docker-compose.dev.yml exec web python manage.py migrate
+
+# Запуск тестов
+docker-compose -f docker-compose.dev.yml exec web python manage.py test shop
+```
+
+### Управление базой данных
+
+```bash
+# Создать бэкап
+./scripts/backup.sh
+
+# Восстановить из бэкапа
+./scripts/restore.sh ./backups/shopmarket_20240101_120000.sql.gz
+
+# Доступ к PostgreSQL консоли
+docker-compose exec db psql -U shopmarket -d shopmarket
+
+# Просмотр логов
+docker-compose logs -f web
+docker-compose logs -f db
+```
+
+### Полезные команды
+
+```bash
+# Перезапуск сервисов
+docker-compose restart
+
+# Остановка
+docker-compose down
+
+# Полная очистка (включая БД!)
+docker-compose down -v
+```
+
 ## 📁 Структура проекта
 
 ```
 MarketShop/
 ├── .github/
 │   └── workflows/
-│       └── django-ci.yml    # CI/CD конфигурация
+│       └── django-ci.yml       # CI/CD конфигурация
 ├── app/
 │   └── backend/
-│       ├── config/          # Настройки Django
+│       ├── config/             # Настройки Django
 │       │   ├── settings.py
 │       │   ├── urls.py
 │       │   └── wsgi.py
-│       ├── shop/            # Основное приложение
-│       │   ├── models.py    # Модели данных
-│       │   ├── views.py     # Представления
-│       │   ├── forms.py     # Формы
-│       │   ├── urls.py      # URL маршруты
-│       │   ├── admin.py     # Админ-панель
-│       │   └── tests.py     # Тесты (55 тестов)
-│       ├── templates/       # HTML шаблоны
-│       │   ├── base.html
-│       │   └── shop/
-│       ├── static/          # Статические файлы
-│       ├── media/           # Загруженные файлы
+│       ├── shop/               # Основное приложение
+│       │   ├── models.py       # Модели данных
+│       │   ├── views.py        # Представления
+│       │   ├── forms.py        # Формы
+│       │   ├── urls.py         # URL маршруты
+│       │   ├── admin.py        # Админ-панель
+│       │   └── tests.py        # Тесты (55 тестов)
+│       ├── templates/          # HTML шаблоны
+│       ├── static/             # Статические файлы
+│       ├── media/              # Загруженные файлы
 │       └── manage.py
-└── requirements.txt
+├── scripts/
+│   ├── backup.sh               # Скрипт бэкапа БД
+│   └── restore.sh              # Скрипт восстановления
+├── docker-compose.yml          # Production конфигурация
+├── docker-compose.dev.yml      # Development конфигурация
+├── Dockerfile
+├── nginx.conf
+└── README.md
 ```
 
 ## 🗄️ Модели данных
@@ -131,6 +211,7 @@ MarketShop/
 | Метод | URL | Описание |
 |-------|-----|----------|
 | GET | `/` | Главная страница |
+| GET | `/health/` | Health check (Docker) |
 | GET | `/products/` | Каталог товаров |
 | GET | `/product/<slug>/` | Детали товара |
 | GET | `/category/<slug>/` | Товары категории |
@@ -139,8 +220,7 @@ MarketShop/
 | POST | `/cart/add/<id>/` | Добавить в корзину |
 | POST | `/cart/update/<id>/` | Обновить количество |
 | POST | `/cart/remove/<id>/` | Удалить из корзины |
-| GET | `/checkout/` | Оформление заказа |
-| POST | `/checkout/` | Создать заказ |
+| GET/POST | `/checkout/` | Оформление заказа |
 | GET | `/orders/` | История заказов |
 | GET | `/order/<id>/` | Детали заказа |
 | GET | `/wishlist/` | Избранное |
@@ -195,7 +275,10 @@ CI запускается автоматически при push/PR в ветк�
 | `SECRET_KEY` | Секретный ключ Django | **обязательно** |
 | `DEBUG` | Режим отладки | `False` |
 | `ALLOWED_HOSTS` | Разрешённые хосты | `localhost,127.0.0.1` |
-| `CSRF_TRUSTED_ORIGINS` | Доверенные источники | `http://localhost:8001` |
+| `DATABASE_URL` | URL подключения к PostgreSQL | SQLite |
+| `POSTGRES_DB` | Имя базы данных | `shopmarket` |
+| `POSTGRES_USER` | Пользователь БД | `shopmarket` |
+| `POSTGRES_PASSWORD` | Пароль БД | **обязательно** |
 
 ### Генерация SECRET_KEY
 
@@ -212,6 +295,7 @@ python -c \"from django.core.management.utils import get_random_secret_key; prin
 - ✅ Secure cookies
 - ✅ X-Frame-Options: DENY
 - ✅ Content-Type nosniff
+- ✅ Non-root пользователь в Docker
 
 ## 📦 Зависимости
 
@@ -219,42 +303,53 @@ python -c \"from django.core.management.utils import get_random_secret_key; prin
 |-------|--------|------------|
 | Django | 5.x | Веб-фреймворк |
 | django-crispy-forms | 2.x | Красивые формы |
-| crispy-bootstrap5 | 2025.x | Bootstrap 5 для форм |
-| django-environ | 0.13.x | Переменные окружения |
-| Pillow | 12.x | Работа с изображениями |
+| crispy-bootstrap5 | 2024+ | Bootstrap 5 для форм |
+| django-environ | 0.11+ | Переменные окружения |
+| Pillow | 10+ | Работа с изображениями |
+| psycopg2-binary | 2.9+ | PostgreSQL драйвер |
+| gunicorn | 21+ | WSGI сервер |
 
-## 🚀 Деплой
+## 🚀 Production Deployment
 
-### Docker (рекомендуется)
+### Рекомендуемый стек
 
-```dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY app/backend .
-RUN python manage.py collectstatic --noinput
-
-EXPOSE 8000
-CMD [\"gunicorn\", \"config.wsgi:application\", \"--bind\", \"0.0.0.0:8000\"]
+```
+                    ┌─────────────────┐
+                    │   CloudFlare    │
+                    │   (SSL/CDN)     │
+                    └────────┬────────┘
+                             │
+                    ┌────────▼────────┐
+                    │     Nginx       │
+                    │  (reverse proxy)│
+                    └────────┬────────┘
+                             │
+              ┌──────────────┼──────────────┐
+              │              │              │
+     ┌────────▼───┐  ┌───────▼────┐  ┌──────▼─────┐
+     │  Gunicorn  │  │  Static    │  │   Media    │
+     │  (Django)  │  │  Files     │  │   Files    │
+     └────────┬───┘  └────────────┘  └────────────┘
+              │
+     ┌────────▼────────┐
+     │   PostgreSQL    │
+     └─────────────────┘
 ```
 
-### Gunicorn + Nginx
+### Checklist перед деплоем
 
-```bash
-pip install gunicorn
-gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3
-```
+- [ ] Изменить `SECRET_KEY` на уникальный
+- [ ] Установить `DEBUG=False`
+- [ ] Настроить `ALLOWED_HOSTS`
+- [ ] Изменить `POSTGRES_PASSWORD`
+- [ ] Настроить SSL сертификат
+- [ ] Включить автоматические бэкапы
 
-## 🤝 Участие в разработке
+### Стиль кода
 
-1. Fork репозитория
-2. Создайте ветку (`git checkout -b feature/amazing-feature`)
-3. Commit изменений (`git commit -m 'Add amazing feature'`)
-4. Push в ветку (`git push origin feature/amazing-feature`)
-5. Откройте Pull Request
+- Python: следуем PEP 8, проверяем через Ruff
+- Тесты обязательны для новых фич
+- Документация для публичных методов
 
 ## 📄 Лицензия
 
@@ -263,5 +358,3 @@ MIT License — см. [LICENSE](LICENSE) файл.
 ## 👤 Автор
 
 **GVia93** — [GitHub](https://github.com/GVia93)
-
----
